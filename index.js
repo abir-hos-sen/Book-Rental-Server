@@ -116,8 +116,8 @@ app.use(async (req, res, next) => {
   } catch (err) {
     app.locals.dbReady = false;
     console.error('Database connection error in request middleware:', err.message);
-    // Don't crash the serverless handler, pass error to Next.js/Vercel
-    next(err);
+    // Do not fail the request; let the app continue in offline/mock fallback mode
+    next();
   }
 });
 
