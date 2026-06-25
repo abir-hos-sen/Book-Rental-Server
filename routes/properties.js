@@ -379,7 +379,9 @@ router.get('/:id', async (req, res) => {
     const Booking = require('../models/Booking');
     let property = null;
 
-    if (mongoose.connection.readyState !== 1) {
+    const isValidObjectId = mongoose.Types.ObjectId.isValid(req.params.id);
+
+    if (mongoose.connection.readyState !== 1 || !isValidObjectId) {
       const found = MOCK_PROPERTIES.find(p => p._id === req.params.id);
       if (found) property = { ...found };
     } else {
@@ -393,7 +395,7 @@ router.get('/:id', async (req, res) => {
 
     // Dynamic isBooked check
     let isBooked = false;
-    if (mongoose.connection.readyState === 1) {
+    if (mongoose.connection.readyState === 1 && isValidObjectId) {
       const activeBooking = await Booking.findOne({ propertyId: req.params.id, paymentStatus: 'Paid' });
       if (activeBooking) isBooked = true;
     }
@@ -408,12 +410,18 @@ router.get('/:id', async (req, res) => {
     property.isBooked = isBooked;
     return res.json(property);
   } catch (error) {
+    console.error('Get property by ID error:', error.message);
     return res.status(500).json({ message: 'Server error.' });
   }
 });
 
 router.put('/:id', verifyToken, verifyRole(['Owner', 'Admin', 'Tenant']), async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.json({ message: 'Property updated successfully!', mock: true });
+    }
+
     const property = await Property.findById(req.params.id);
     if (!property) {
       return res.status(404).json({ message: 'Property not found.' });
@@ -433,12 +441,18 @@ router.put('/:id', verifyToken, verifyRole(['Owner', 'Admin', 'Tenant']), async 
     const updatedProperty = await Property.findByIdAndUpdate(req.params.id, updates, { new: true });
     return res.json({ message: 'Property updated successfully!', property: updatedProperty });
   } catch (error) {
+    console.error('Update property error:', error.message);
     return res.status(500).json({ message: 'Server error.' });
   }
 });
 
 router.delete('/:id', verifyToken, verifyRole(['Owner', 'Admin', 'Tenant']), async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.json({ message: 'Property deleted successfully!', mock: true });
+    }
+
     const property = await Property.findById(req.params.id);
     if (!property) {
       return res.status(404).json({ message: 'Property not found.' });
@@ -451,6 +465,7 @@ router.delete('/:id', verifyToken, verifyRole(['Owner', 'Admin', 'Tenant']), asy
     await Property.findByIdAndDelete(req.params.id);
     return res.json({ message: 'Property deleted successfully!' });
   } catch (error) {
+    console.error('Delete property error:', error.message);
     return res.status(500).json({ message: 'Server error.' });
   }
 });
