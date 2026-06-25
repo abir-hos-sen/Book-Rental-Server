@@ -91,16 +91,35 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cookieParser());
 
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/booking-platform';
-mongoose.connect(mongoURI)
-  .then(() => {
-    app.locals.dbReady = true;
-    console.log('Successfully connected to MongoDB Atlas.');
-  })
-  .catch((err) => {
-    app.locals.dbReady = false;
-    console.error('MongoDB connection error:', err);
-    console.log('Ensure your MONGO_URI env variable is set. Running in offline mode/local fallback.');
+
+let cachedConnection = null;
+
+const connectDB = async () => {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    return cachedConnection;
+  }
+  
+  // Set timeout so Vercel function doesn't hang forever if Atlas is unreachable
+  cachedConnection = await mongoose.connect(mongoURI, {
+    serverSelectionTimeoutMS: 5000 
   });
+  console.log('Successfully connected to MongoDB Database.');
+  return cachedConnection;
+};
+
+// Middleware to run DB connection on demand for serverless requests
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    app.locals.dbReady = true;
+    next();
+  } catch (err) {
+    app.locals.dbReady = false;
+    console.error('Database connection error in request middleware:', err.message);
+    // Don't crash the serverless handler, pass error to Next.js/Vercel
+    next(err);
+  }
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
