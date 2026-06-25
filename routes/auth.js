@@ -12,7 +12,7 @@ const {
   buildGoogleAuthUrl,
   exchangeGoogleAuthCode,
   fetchGoogleUserInfo,
-} = require('../services/authService');
+} = require('../services/authservice');
 
 router.post('/register', async (req, res) => {
   const { name, email, password, photo, role } = req.body;
